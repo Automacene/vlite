@@ -8,7 +8,7 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'vlite=gui.cli:main',
+            'vlite=vlite.gui.cli:main',
         ],
     },
     install_requires=[
