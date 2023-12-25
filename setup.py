@@ -2,11 +2,15 @@ from setuptools import setup, find_packages
 
 setup(
     name='vlite',
-    version='0.1.7',
-    author='Surya Dantuluri',
-    author_email='surya@suryad.com',
-    description='A simple vector database that stores vectors in a numpy array.',
+    version='0.2.0',
+    author='Codie Petersen',
+    description='A simple vector database that stores vectors in a numpy array. Remixed by Atuomacene.',
     packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'vlite=gui.cli:main',
+        ],
+    },
     install_requires=[
         'numpy',
         'pysbd',
