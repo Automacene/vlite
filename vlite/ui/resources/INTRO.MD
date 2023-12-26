@@ -1,2 +1,2 @@
-### About EmbRaVec
-EmbRaVec is an all-in-one vector database solution, equipped with a user-friendly interface for streamlined management. It integrates advanced AI capabilities for smart format and parse support, making it a powerful tool for managing and interacting with the EmbRaVec database. 
+### About EMBRAVEC DB
+EMBRAVEC DB is an all-in-one vector database solution, equipped with a user-friendly interface for streamlined management. It integrates advanced AI capabilities for smart format and parse support, making it a powerful tool for managing and interacting with the EMBRAVEC database. 

@@ -16,6 +16,11 @@ class Data:
             data = {}
         self._data = data
     
+    def __contains__(self, key: str) -> bool:
+        """Check if a key is in the data object. Key must be a string."""
+        key = str(key)
+        return key in self._data
+
     def __getitem__(self, key: str):
         """Get a value from the data object. Key must be a string."""
         key = str(key)

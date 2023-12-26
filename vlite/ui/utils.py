@@ -1,4 +1,6 @@
-from typing import Any
+from vlite.main import VLite
+from typing import Any, List
+from warnings import warn
 import json
 import os
 
@@ -7,7 +9,8 @@ class Settings(object):
     
     def __init__(self):
         """Initialize the settings object."""
-        self.settings_file = os.path.join(os.path.dirname(__file__), "settings.json")
+        self.settings_file = os.path.join(os.path.expanduser(os.getenv('LOCALAPPDATA')), "Automacene/EmbravecDB/settings.json").replace("\\", "/")
+        self.settings = {}
         self.settings = self.load_settings()
 
     def load_settings(self):
@@ -16,10 +19,15 @@ class Settings(object):
             with open(self.settings_file, "r") as f:
                 return json.load(f)
         else:
-            return {}
+            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+            return {
+                "database_path": self.database_path
+            }
 
     def save_settings(self):
         """Save the settings to the settings file."""
+        if not os.path.exists(os.path.dirname(self.settings_file)):
+            os.makedirs(os.path.dirname(self.settings_file))
         with open(self.settings_file, "w") as f:
             json.dump(self.settings, f)
 
@@ -50,60 +58,23 @@ class Settings(object):
     @property
     def database_path(self):
         """Return the database path."""
+        if self.get("database_path") == None:
+            return os.path.join(os.path.expanduser(os.getenv('LOCALAPPDATA')), "Automacene/EmbravecDB/databases").replace("\\", "/")
         return self.get("database_path")
     
     @database_path.setter
     def database_path(self, value):
         """Set the database path."""
+        #Make sure path is folder and not file
+        if "." in value:
+            warn("The database path must be a folder, not a file.")
+            return
         #Check if the path exists, create it if it doesn't, and set the database path
         if not os.path.exists(value):
             os.makedirs(value)
         self.set("database_path", value)
 
-    def __repr__(self):
-        """Return a string representation of the settings."""
-        return f"Settings({self.settings})"
 
-    def __str__(self):
-        """Return a string representation of the settings."""
-        return f"Settings({self.settings})"
-
-    def __getitem__(self, key):
-        """Get a setting."""
-        return self.get(key)
-
-    def __setitem__(self, key, value):
-        """Set a setting."""
-        self.set(key, value)
-
-    def __delitem__(self, key):
-        """Delete a setting."""
-        self.delete(key)
-
-    def __contains__(self, key):
-        """Check if a setting exists."""
-        return key in self.settings
-
-    def __len__(self):
-        """Return the number of settings."""
-        return len(self.settings)
-
-    def __iter__(self):
-        """Iterate over the settings."""
-        return iter(self.settings)
-
-    def __reversed__(self):
-        """Iterate over the settings in reverse."""
-        return reversed(self.settings)
-
-    def __eq__(self, other):
-        """Check if the settings are equal."""
-        return self.settings == other
-
-    def __ne__(self, other):
-        """Check if the settings are not equal."""
-        return self.settings != other
-    
 def load_md_text(path: str, file: Any = None) -> str:
     """
     Load markdown text from a file.
@@ -127,3 +98,66 @@ def load_md_text(path: str, file: Any = None) -> str:
         raise Exception(f"File not found: {path}")
     except Exception as e:
         raise Exception(f"Error loading file {path.split('/')[-1]}: {e}")
+    
+def get_databases(path: str) -> (List[str], List[str]):
+    """
+    Get the databases from the database path.
+
+    parameters:
+        path: str
+            The path to the databases.
+
+    returns:
+        List[str]
+            The databases.
+        List[str]
+            The descriptions of the databases.
+    """
+    if not os.path.exists(path):
+        raise Exception(f"Path does not exist: {path}")
+    if not os.path.isdir(path):
+        raise Exception(f"Path is not a directory: {path}")
+
+    files = os.listdir(path)
+    dbs = [file for file in files if file.endswith(".db")]
+    databases = []
+    descriptions = []
+    for db in dbs:
+        loaded_db = VLite(os.path.join(path, db))
+        databases.append(db.split(".")[0])
+        if "description" in loaded_db.metadata:
+            descriptions.append(loaded_db.metadata["description"])
+        else:
+
+            descriptions.append("None provided.")
+        print("Loaded database:", db)
+
+    return databases, descriptions
+
+def create_new_database(path: str, name: str) -> None:
+    """
+    Create a new database.
+
+    parameters:
+        path: str
+            The path to the databases.
+        name: str
+            The name of the database.
+        description: str
+            The description of the database.
+    """
+    print("Creating new database..")
+    if not os.path.exists(path):
+        raise Exception(f"Path does not exist: {path}")
+    if not os.path.isdir(path):
+        raise Exception(f"Path is not a directory: {path}")
+    if not name.endswith(".db"):
+        name += ".db"
+    if name in os.listdir(path):
+        raise Exception(f"Database already exists: {name}")
+    
+    db_path = os.path.join(path, name)
+    db = VLite(db_path)
+    db.metadata["description"] = "Empty Database"
+    db.save()
+    

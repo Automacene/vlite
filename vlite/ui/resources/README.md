@@ -1,3 +1,3 @@
-# Automacene Embedded Rapid Vector System (EMBRAVEC)
+# E M B R A V E C - D B
 
-EmbRaVec is a light weight VectorDatabase with a graphical user interface and smart LLM-based format and parse support.
+EMBRAVEC - **Emb**edded **Ra**pid **Vec**torized Database
