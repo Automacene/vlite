@@ -1,3 +1,4 @@
+from typing import Any
 import json
 import os
 
@@ -102,12 +103,27 @@ class Settings(object):
     def __ne__(self, other):
         """Check if the settings are not equal."""
         return self.settings != other
+    
+def load_md_text(path: str, file: Any = None) -> str:
+    """
+    Load markdown text from a file.
 
+    parameters:
+        path: str
+            The path to the markdown file.
+    
+    returns:
+        str
+            The markdown text.
+    """
+    if file != None:
+        current_dir = os.path.dirname(file)
+        path = os.path.join(current_dir, path)
 
-def get_settings():
-    """Get the settings from the settings file."""
-    pass
-
-def set_settings():
-    """Set the settings in the settings file."""
-    pass
+    try:
+        with open(path, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise Exception(f"File not found: {path}")
+    except Exception as e:
+        raise Exception(f"Error loading file {path.split('/')[-1]}: {e}")
