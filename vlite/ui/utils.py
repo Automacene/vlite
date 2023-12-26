@@ -134,7 +134,7 @@ def get_databases(path: str) -> (List[str], List[str]):
 
     return databases, descriptions
 
-def create_new_database(path: str, name: str) -> None:
+def create_new_database(path: str, name: str, description: str, source: str) -> None:
     """
     Create a new database.
 
@@ -158,6 +158,7 @@ def create_new_database(path: str, name: str) -> None:
     
     db_path = os.path.join(path, name)
     db = VLite(db_path)
-    db.metadata["description"] = "Empty Database"
+    db.metadata["description"] = description
+    db.metadata["source"] = source
     db.save()
     

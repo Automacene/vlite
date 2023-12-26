@@ -13,6 +13,8 @@ is_open_toggles = [
 ]
 
 name_cleaner = re.compile(r"[^a-zA-Z0-9_]")
+description_cleaner = re.compile(r"[^a-zA-Z0-9_ .,!?;:-]")
+source_cleaner = re.compile(r"[^a-zA-Z0-9_/:.]")
 
 def set_session() -> None:
     """
@@ -32,7 +34,8 @@ def set_session() -> None:
 
     # Initialize session settings
     st.session_state["settings"] = Settings()
-    st.session_state["selected_database"] = None
+    if "selected_database" not in st.session_state:
+        st.session_state["selected_database"] = None
 
 def toggle_all_other_toggles(toggle_name: str) -> None:
     """
@@ -60,6 +63,19 @@ def set_and_save_settings(key: str, value: Any) -> None:
     """
     st.session_state.settings.set(key, value)
     st.session_state.settings.save_settings()
+
+def toggle_selected_database(database: str) -> None:
+    """
+    Select a database.
+
+    parameters:
+        database: str
+            The name of the database to select.
+    """
+    if st.session_state.selected_database == database:
+        st.session_state.selected_database = None
+    else:
+        st.session_state.selected_database = database
 
 #---------------------------------#
 #------------ Graphics -----------#
@@ -95,11 +111,14 @@ def create_sidebar() -> None:
 def write_page() -> None:
     """Write the page."""
     st.markdown(load_md_text("./resources/README.md", __file__))
-    search, edit = st.tabs(["Search", "Edit"])
+    search, edit, create = st.tabs(["Search", "Edit", "Create"])
     with search:
         write_database_selection_window()
     with edit:
         write_edit_window()
+    with create:
+        write_create_window()
+
 
 
 def write_database_selection_window() -> None:
@@ -107,7 +126,7 @@ def write_database_selection_window() -> None:
     Write the databases to the page.
     """
     #Build selection window
-    col1, col2, col3 = st.columns([1,1,1])
+    col1, col2, col3 = st.columns([1,4,1])
     
     #Titles
     col1.markdown("#### Database Names")
@@ -119,32 +138,70 @@ def write_database_selection_window() -> None:
     for database, description in zip(databases, descriptions):
         col1.markdown(database)
         col2.markdown(description)
-        col3.checkbox(database)
+        checked = st.session_state.selected_database == database
+        print(database, st.session_state.selected_database, checked)
+        
+        col3.checkbox(f"-- Select {database} --", value=checked, on_change=toggle_selected_database, args=(database,))
 
 def write_edit_window() -> None:
     """
     Write the edit window to the page.
     """
     if st.session_state.selected_database == None:
-        st.markdown("No database selected, please select a database under the search tab or create a new one.")
-        col1, col2 = st.columns([1,3])
-        new_line(col1, 2)
-        make_new_database = col1.button("Create New Database")
-        db_name = col2.text_input("Database Name", placeholder="Enter database name here...")
+        st.markdown("No database selected, please select a database under the **'Search'** tab or create a new one under the **'Create'** tab.")
+        return
 
-        if make_new_database:
-            temp_db_name = name_cleaner.sub("", db_name)
-            if temp_db_name != db_name:
-                st.error("Please only use letters, numbers, and underscores in the database name.")
-            
-            db_name = temp_db_name
-            if db_name == "":
-                st.error("Please enter a database name.")
-            else:
-                create_new_database(st.session_state.settings.database_path, db_name)
-                st.session_state.selected_database = f"{db_name}.db"
-                st.session_state.is_open_settings = True
+def write_create_window() -> None:
+    """
+    Write the create window to the page.
+    """
+    col1, col2 = st.columns([1,3])
+    new_line(col1, 2)
+    make_new_database = col1.button("Create New Database")
+    db_name = col2.text_input("Database Name", placeholder="Enter database name here...")
+    db_description = col2.text_input("Database Description", placeholder="Enter database description here...")
+    db_source = col2.text_input("Database Source", placeholder="Enter database source here...")
+
+    if make_new_database:
+        #Conformity checks
+        temp_db_name = name_cleaner.sub("", db_name)
+        if temp_db_name != db_name:
+            st.error("Please only use letters, numbers, and underscores in the database name.")
             return
+        
+        temp_db_source = source_cleaner.sub("", db_source)
+        if temp_db_source != db_source:
+            st.error("Please only use letters, numbers, and underscores in the database source. This should be a web address or file path.")
+            return
+        
+        temp_db_description = description_cleaner.sub("", db_description)
+        print(temp_db_description, db_description)
+        if temp_db_description != db_description:
+            st.error("Please only use letters, numbers, and punctuation (.,!?;:-) in the database description.")
+            st.error(temp_db_description)
+            st.error(db_description)
+            return
+
+        #Empty checks
+        db_name = temp_db_name
+        if db_name == "":
+            st.error("Please enter a database name.")
+            return
+        
+        db_source = temp_db_source
+        if db_source == "":
+            st.error("Please enter a database source.")
+            return
+        
+        db_description = temp_db_description
+        if db_description == "":
+            st.error("Please enter a database description.")
+            return
+        
+        create_new_database(st.session_state.settings.database_path, db_name, db_description, db_source)
+        st.session_state.selected_database = f"{db_name}.db"
+        st.session_state.is_open_settings = True
+
 
 #---------------------------------#
 #------------ Functions ----------#
