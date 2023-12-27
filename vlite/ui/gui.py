@@ -1,4 +1,5 @@
-from vlite.ui.utils import load_md_text, get_databases, create_new_database, load_database, Settings
+from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
+                           load_database, Settings, create_entry
 from typing import List, Any
 import streamlit as st
 import re
@@ -166,22 +167,73 @@ def write_edit_window() -> None:
     new_line(col2, 1)
     col1.button("Retrieve Entry")
     col2.checkbox("By ID", key="retrieve_by_id")
-    col3.text_area("Query", placeholder="Enter query here. If 'By ID' is checked, this is the ID. Otherwise, this is the data.")
+    col3.text_area("Query", placeholder="If 'By ID' is checked, this is the ID. Otherwise, this is the data.")
     
     #Create Entry
     new_line(col1, 11)
     new_line(col2, 10)
     new_line(col3, 4)
-    col1.button("Create Entry")
-    col2.text_input("ID", placeholder="Enter ID here...", key="create_id")
-    col3.text_area("Data", placeholder="Enter data here...")
+    create_new_entry = col1.button("Create Entry")
+    entry_id = col2.text_input("Creation ID", placeholder="Enter ID here...", key="create_id")
+    entry_data = col3.text_area("Data", placeholder="Enter data here...")
     
-    #Delete Entry
-    new_line(col1, 6)
-    new_line(col2, 4)
+    #Metadata for Create Entry
+    new_line(col1, 1)
+    new_line(col2, 1)
     new_line(col3, 4)
+    with col3.form("Metadata"):
+        col2.markdown("#### Metadata")
+        metadata_id = col2.text_input("Metadata ID", placeholder="Enter ID here...", key="metadata_id")
+        metadata_source = col2.text_input("Source", placeholder="Enter source here...", key="metadata_source")
+        metadata_description = col2.text_area("Description", placeholder="Enter description here...", key="metadata_description")
+    
+
+    #Delete Entry
+    new_line(col1, 27)
+    new_line(col2, 2)
     col1.button("Delete Entry")
-    col2.text_input("ID", placeholder="Enter ID here...", key="delete_id")
+    col2.text_input("Deletion ID", placeholder="Enter ID here...", key="delete_id")
+
+    #Read all buttons
+    #Create Button
+    if create_new_entry:
+        #Conformity checks
+        #TODO: This is hella ugly, fix it. Maybe separate function or pass checks from create_entry?
+        temp_entry_id = name_cleaner.sub("", entry_id)
+        if temp_entry_id != entry_id:
+            st.error("Please only use letters, numbers, and underscores in the entry id.")
+            return
+        temp_entry_id = temp_entry_id.strip()
+        temp_entry_id = None if temp_entry_id == "" else temp_entry_id
+        
+        temp_metadata_id = name_cleaner.sub("", metadata_id)
+        if temp_metadata_id != metadata_id:
+            st.error("Please only use letters, numbers, and underscores in the metadata id.")
+            return
+        temp_metadata_id = temp_metadata_id.strip()
+        temp_metadata_id = None if temp_metadata_id == "" else temp_metadata_id
+
+        temp_metadata_source = source_cleaner.sub("", metadata_source)
+        if temp_metadata_source != metadata_source:
+            st.error("Please only use letters, numbers, and underscores in the metadata source. This should be a web address or file path.")
+            return
+        temp_metadata_source = temp_metadata_source.strip()
+        temp_metadata_source = None if temp_metadata_source == "" else temp_metadata_source
+
+        temp_metadata_description = description_cleaner.sub("", metadata_description)
+        if temp_metadata_description != metadata_description:
+            st.error("Please only use letters, numbers, and punctuation (.,!?;:-) in the metadata description.")
+            return
+        temp_metadata_description = temp_metadata_description.strip()
+        temp_metadata_description = None if temp_metadata_description == "" else temp_metadata_description
+
+        #Empty checks
+        entry_data = entry_data.strip()
+        if entry_data == "":
+            st.error("Please enter an entry data.")
+            return
+        
+        create_entry(database, entry_data, entry_id)
 
 def write_create_window() -> None:
     """
@@ -236,7 +288,7 @@ def write_create_window() -> None:
 
 #---------------------------------#
 #------------ Functions ----------#
-#---------------------------------#
+#---------------------------------#        
 def new_line(container: Any = None, times: int = 1) -> None:
     """
     Add a new line to an element.

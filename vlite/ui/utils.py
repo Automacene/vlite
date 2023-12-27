@@ -1,7 +1,8 @@
+from typing import Any, List, Dict
 from vlite.main import VLite
-from typing import Any, List
 from warnings import warn
 import json
+import uuid
 import os
 
 class Settings(object):
@@ -188,4 +189,51 @@ def load_database(path: str, name: str) -> VLite:
     db_path = os.path.join(path, name)
     db = VLite(db_path)
     return db
+
+def create_entry(db: VLite, data: str, id: str = None, metadata: Dict[str, Any] = None) -> None:
+    """
+    Create an entry in a database.
+
+    parameters:
+        db: VLite
+            The database.
+        data: str
+            The data to store in the database.
+        id: str
+    """
+    if id == None or id == "":
+        id = str(uuid.uuid4().hex)
+    if metadata == None:
+        metadata = {
+            "id": id,
+            "source": "EmbravecDB Interface",
+            "description": "None provided."
+        }
     
+    #Check if id already exists
+    if id in db._vector_key_store:
+        raise Exception(f"Entry already exists with id '{id}'.")
+    #Check if metadata has all required keys
+    if "id" not in metadata:
+        warn("Metadata does not contain an id. Adding one.")
+        metadata["id"] = id
+    elif metadata["id"] == None:
+        warn("Metadata does not contain an id. Adding one.")
+        metadata["id"] = id
+
+    if "source" not in metadata:
+        warn("Metadata does not contain a source. Adding one.")
+        metadata["source"] = "EmbravecDB Interface"
+    elif metadata["source"] == None:
+        warn("Metadata does not contain a source. Adding one.")
+        metadata["source"] = "EmbravecDB Interface"
+
+    if "description" not in metadata:
+        warn("Metadata does not contain a description. Adding one.")
+        metadata["description"] = "None provided."
+    elif metadata["description"] == None:
+        warn("Metadata does not contain a description. Adding one.")
+        metadata["description"] = "None provided."
+    
+    db.memorize(data, id=id, metadata=metadata)
+    print(db.remember(id=id))

@@ -153,7 +153,7 @@ class VLite:
         if id != None:
             id = str(id)
         else:
-            id = uuid.uuid4()
+            id = str(uuid.uuid4())
         
         encoded_data = self.model.embed(texts=text, device=self.device)
         self.vectors = np.vstack((self.vectors, encoded_data))
