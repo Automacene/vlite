@@ -236,7 +236,6 @@ def create_entry(db: VLite, data: str, id: str = None, metadata: Dict[str, Any] 
         metadata["description"] = "None provided."
     
     db.memorize(data, id=id, metadata=metadata)
-    print(db.remember(id=id))
 
 def retrieve_entries_by_id(db: VLite, ids: List[str]=None) -> List[Dict[str, Any]]:
     """

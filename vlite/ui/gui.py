@@ -246,7 +246,12 @@ def write_edit_window() -> None:
             st.error("Please enter an entry data.")
             return
         
-        create_entry(database, entry_data, entry_id)
+        metadata = {
+            "id": temp_metadata_id,
+            "source": temp_metadata_source,
+            "description": temp_metadata_description
+        }
+        create_entry(database, entry_data, id=entry_id, metadata=metadata)
     
     #Retrieve Button
     if do_retrieve_entries:
