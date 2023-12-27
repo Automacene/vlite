@@ -204,8 +204,8 @@ def write_edit_window() -> None:
     #Delete Entry
     new_line(col1, 27)
     new_line(col2, 2)
-    col1.button("Delete Entry")
-    col2.text_input("Deletion ID", placeholder="Enter ID here...", key="delete_id")
+    do_delete = col1.button("Delete Entry")
+    delete_id = col2.text_input("Deletion ID", placeholder="Enter ID here...", key="delete_id")
 
     #Read all buttons
     #Create Button
@@ -272,7 +272,28 @@ def write_edit_window() -> None:
         else:
             retrieved_table = retrieve_entries_by_query(database, query)
             st.session_state.retrieved_table = retrieved_table
-            
+    
+    #Delete Button
+    if do_delete:
+        #Conformity checks
+        temp_delete_id = name_cleaner.sub("", delete_id)
+        if temp_delete_id != delete_id:
+            st.error("Please only use letters, numbers, and underscores in the delete id.")
+            return
+        temp_delete_id = temp_delete_id.strip()
+        temp_delete_id = None if temp_delete_id == "" else temp_delete_id
+
+        #Empty checks
+        delete_id = delete_id.strip()
+        if delete_id == "":
+            st.error("Please enter a delete id.")
+            return
+        
+        #Delete
+        try:
+            database.forget(id=delete_id)
+        except Exception as e:
+            st.error(f"Could not delete entry: {e}")
 
 
 def write_create_window() -> None:
