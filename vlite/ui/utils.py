@@ -264,7 +264,7 @@ def retrieve_entries_by_id(db: VLite, ids: List[str]=None) -> List[Dict[str, Any
         entries.append(entry)
     return entries
 
-def retrieve_entries_by_query(db: VLite, query: str) -> List[Dict[str, Any]]:
+def retrieve_entries_by_query(db: VLite, query: str, count:int=5) -> List[Dict[str, Any]]:
     """
     Retrieve entries from a database.
 
@@ -278,4 +278,12 @@ def retrieve_entries_by_query(db: VLite, query: str) -> List[Dict[str, Any]]:
         List[Dict[str, Any]]
             The entries.
     """
-    pass
+    data, metadata, _ = db.remember(text=query, top_k=count)
+    entries = []
+    for i in range(len(data)):
+        entry = {
+            "id": metadata[i]["id"],
+            "data": data[i],
+        }
+        entries.append(entry)
+    return entries

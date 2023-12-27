@@ -1,5 +1,6 @@
 from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
-                           load_database, Settings, create_entry, retrieve_entries_by_id
+                           load_database, Settings, create_entry, retrieve_entries_by_id, \
+                           retrieve_entries_by_query
 from typing import List, Any
 import streamlit as st
 import re
@@ -269,7 +270,7 @@ def write_edit_window() -> None:
             retrieved_table = retrieve_entries_by_id(database, ids=[query])
             st.session_state.retrieved_table = retrieved_table
         else:
-            retrieved_table = retrieve_entries_by_id(database, data=query)
+            retrieved_table = retrieve_entries_by_query(database, query)
             st.session_state.retrieved_table = retrieved_table
             
 
