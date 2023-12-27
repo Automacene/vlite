@@ -1,4 +1,4 @@
-from vlite.ui.utils import load_md_text, get_databases, create_new_database, Settings
+from vlite.ui.utils import load_md_text, get_databases, create_new_database, load_database, Settings
 from typing import List, Any
 import streamlit as st
 import re
@@ -120,7 +120,6 @@ def write_page() -> None:
         write_create_window()
 
 
-
 def write_database_selection_window() -> None:
     """
     Write the databases to the page.
@@ -139,9 +138,8 @@ def write_database_selection_window() -> None:
         col1.markdown(database)
         col2.markdown(description)
         checked = st.session_state.selected_database == database
-        print(database, st.session_state.selected_database, checked)
-        
         col3.checkbox(f"-- Select {database} --", value=checked, on_change=toggle_selected_database, args=(database,))
+
 
 def write_edit_window() -> None:
     """
@@ -150,6 +148,40 @@ def write_edit_window() -> None:
     if st.session_state.selected_database == None:
         st.markdown("No database selected, please select a database under the **'Search'** tab or create a new one under the **'Create'** tab.")
         return
+
+    database = load_database(st.session_state.settings.database_path, st.session_state.selected_database)
+    #Entry View
+    keys = database._vector_key_store
+    table = [{"id": "ID", "data": "Data"}]
+    for key in keys:
+        data, _, _ = database.remember(id=key)
+        entry = {"id": key, "data": data}
+        table.append(entry)
+    draw_table(table)
+    st.markdown("---")
+    
+    col1, col2, col3 = st.columns([1,1,4])
+    #Retrieve Entry
+    new_line(col1, 1)
+    new_line(col2, 1)
+    col1.button("Retrieve Entry")
+    col2.checkbox("By ID", key="retrieve_by_id")
+    col3.text_area("Query", placeholder="Enter query here. If 'By ID' is checked, this is the ID. Otherwise, this is the data.")
+    
+    #Create Entry
+    new_line(col1, 11)
+    new_line(col2, 10)
+    new_line(col3, 4)
+    col1.button("Create Entry")
+    col2.text_input("ID", placeholder="Enter ID here...", key="create_id")
+    col3.text_area("Data", placeholder="Enter data here...")
+    
+    #Delete Entry
+    new_line(col1, 6)
+    new_line(col2, 4)
+    new_line(col3, 4)
+    col1.button("Delete Entry")
+    col2.text_input("ID", placeholder="Enter ID here...", key="delete_id")
 
 def write_create_window() -> None:
     """
@@ -199,8 +231,7 @@ def write_create_window() -> None:
             return
         
         create_new_database(st.session_state.settings.database_path, db_name, db_description, db_source)
-        st.session_state.selected_database = f"{db_name}.db"
-        st.session_state.is_open_settings = True
+        toggle_selected_database(db_name)
 
 
 #---------------------------------#
@@ -223,6 +254,48 @@ def new_line(container: Any = None, times: int = 1) -> None:
     else:
         for _ in range(times):
             container.markdown(" ")
+
+
+def draw_table(table: List[dict], container: Any = None) -> None:
+    """
+    A markdown table.
+
+    parameters:
+        table: List[dict]
+            The table to draw with a key and value for each column in the table for every row.
+            The first row is the header row, the values are the formatted column names.
+        container: Any
+            Any item like a streamlit column or container.
+            None will add a new line to the page.
+    """
+    #Check for empty table
+    if len(table) == 1:
+        if container == None:
+            st.markdown("No data to display.")
+        else:
+            container.markdown("No data to display.")
+        return
+    
+    #Create table string
+    table_string = "|"
+    for key in table[0]:
+        table_string += f" {table[0][key]} |"
+    table_string += "\n|"
+    for _ in table[0]:
+        table_string += " --- |"
+    table_string += "\n"
+    for row in table[1:]:
+        table_string += "|"
+        for key in row:
+            table_string += f" {row[key]} |"
+        table_string += "\n"
+    
+    #Draw table
+    if container == None:
+        st.markdown(table_string)
+    else:
+        container.markdown(table_string)
+
 
 if __name__ == "__main__":
     set_session()

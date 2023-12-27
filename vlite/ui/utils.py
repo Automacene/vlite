@@ -161,4 +161,31 @@ def create_new_database(path: str, name: str, description: str, source: str) -> 
     db.metadata["description"] = description
     db.metadata["source"] = source
     db.save()
+
+def load_database(path: str, name: str) -> VLite:
+    """
+    Load a database.
+
+    parameters:
+        path: str
+            The path to the databases.
+        name: str
+            The name of the database.
+
+    returns:
+        VLite
+            The database.
+    """
+    if not os.path.exists(path):
+        raise Exception(f"Path does not exist: {path}")
+    if not os.path.isdir(path):
+        raise Exception(f"Path is not a directory: {path}")
+    if not name.endswith(".db"):
+        name += ".db"
+    if name not in os.listdir(path):
+        raise Exception(f"Database does not exist: {name}")
+
+    db_path = os.path.join(path, name)
+    db = VLite(db_path)
+    return db
     
