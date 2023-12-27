@@ -237,3 +237,45 @@ def create_entry(db: VLite, data: str, id: str = None, metadata: Dict[str, Any] 
     
     db.memorize(data, id=id, metadata=metadata)
     print(db.remember(id=id))
+
+def retrieve_entries_by_id(db: VLite, ids: List[str]=None) -> List[Dict[str, Any]]:
+    """
+    Retrieve entries from a database.
+
+    parameters:
+        db: VLite
+            The database.
+        ids: List[str]
+            The ids of the entries to retrieve.
+
+    returns:
+        List[Dict[str, Any]]
+            The entries.
+    """
+    if ids == None:
+        ids = db._vector_key_store
+    entries = []
+    for id in ids:
+        entry_data, entry_metadata, _ = db.remember(id=id)
+        entry = {
+            "id": id,
+            "data": entry_data,
+        }
+        entries.append(entry)
+    return entries
+
+def retrieve_entries_by_query(db: VLite, query: str) -> List[Dict[str, Any]]:
+    """
+    Retrieve entries from a database.
+
+    parameters:
+        db: VLite
+            The database.
+        query: str
+            The query to use to retrieve entries.
+
+    returns:
+        List[Dict[str, Any]]
+            The entries.
+    """
+    pass

@@ -1,5 +1,5 @@
 from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
-                           load_database, Settings, create_entry
+                           load_database, Settings, create_entry, retrieve_entries_by_id
 from typing import List, Any
 import streamlit as st
 import re
@@ -16,6 +16,7 @@ is_open_toggles = [
 name_cleaner = re.compile(r"[^a-zA-Z0-9_]")
 description_cleaner = re.compile(r"[^a-zA-Z0-9_ .,!?;:-]")
 source_cleaner = re.compile(r"[^a-zA-Z0-9_/:.]")
+
 
 def set_session() -> None:
     """
@@ -37,6 +38,11 @@ def set_session() -> None:
     st.session_state["settings"] = Settings()
     if "selected_database" not in st.session_state:
         st.session_state["selected_database"] = None
+    if "select_entry_by_id" not in st.session_state:
+        st.session_state["select_entry_by_id"] = False
+    if "retrieved_table" not in st.session_state:
+        st.session_state["retrieved_table"] = []
+
 
 def toggle_all_other_toggles(toggle_name: str) -> None:
     """
@@ -51,6 +57,7 @@ def toggle_all_other_toggles(toggle_name: str) -> None:
         temp_toggle_name = f"is_open_{toggle}"
         if temp_toggle_name != toggle_name:
             st.session_state[temp_toggle_name] = False
+
 
 def set_and_save_settings(key: str, value: Any) -> None:
     """
@@ -77,6 +84,13 @@ def toggle_selected_database(database: str) -> None:
         st.session_state.selected_database = None
     else:
         st.session_state.selected_database = database
+
+def toggle_retrieve_by_id() -> None:
+    """
+    Toggle the retrieve by id checkbox.
+    """
+    st.session_state.select_entry_by_id = not st.session_state.select_entry_by_id
+
 
 #---------------------------------#
 #------------ Graphics -----------#
@@ -152,12 +166,11 @@ def write_edit_window() -> None:
 
     database = load_database(st.session_state.settings.database_path, st.session_state.selected_database)
     #Entry View
-    keys = database._vector_key_store
     table = [{"id": "ID", "data": "Data"}]
-    for key in keys:
-        data, _, _ = database.remember(id=key)
-        entry = {"id": key, "data": data}
-        table.append(entry)
+    if st.session_state.retrieved_table == []:
+        table += retrieve_entries_by_id(database)
+    else:
+        table += st.session_state.retrieved_table
     draw_table(table)
     st.markdown("---")
     
@@ -165,9 +178,9 @@ def write_edit_window() -> None:
     #Retrieve Entry
     new_line(col1, 1)
     new_line(col2, 1)
-    col1.button("Retrieve Entry")
-    col2.checkbox("By ID", key="retrieve_by_id")
-    col3.text_area("Query", placeholder="If 'By ID' is checked, this is the ID. Otherwise, this is the data.")
+    do_retrieve_entries = col1.button("Retrieve Entry")
+    query = col3.text_area("Query", placeholder="If 'By ID' is checked, this is the ID. Otherwise, this is the data.")
+    col2.checkbox("By ID", key="retrieve_by_id", on_change=toggle_retrieve_by_id)
     
     #Create Entry
     new_line(col1, 11)
@@ -186,7 +199,6 @@ def write_edit_window() -> None:
         metadata_id = col2.text_input("Metadata ID", placeholder="Enter ID here...", key="metadata_id")
         metadata_source = col2.text_input("Source", placeholder="Enter source here...", key="metadata_source")
         metadata_description = col2.text_area("Description", placeholder="Enter description here...", key="metadata_description")
-    
 
     #Delete Entry
     new_line(col1, 27)
@@ -234,6 +246,33 @@ def write_edit_window() -> None:
             return
         
         create_entry(database, entry_data, entry_id)
+    
+    #Retrieve Button
+    if do_retrieve_entries:
+        #Conformity checks
+        if st.session_state.select_entry_by_id:
+            temp_query = name_cleaner.sub("", query)
+            if temp_query != query:
+                st.error("Please only use letters, numbers, and underscores in the query.")
+                return
+            temp_query = temp_query.strip()
+            temp_query = None if temp_query == "" else temp_query
+        
+        #Empty checks
+        query = query.strip()
+        if query == "":
+            st.error("Please enter a query.")
+            return
+
+        #Retrieve
+        if st.session_state.select_entry_by_id:
+            retrieved_table = retrieve_entries_by_id(database, ids=[query])
+            st.session_state.retrieved_table = retrieved_table
+        else:
+            retrieved_table = retrieve_entries_by_id(database, data=query)
+            st.session_state.retrieved_table = retrieved_table
+            
+
 
 def write_create_window() -> None:
     """
@@ -320,6 +359,7 @@ def draw_table(table: List[dict], container: Any = None) -> None:
             Any item like a streamlit column or container.
             None will add a new line to the page.
     """
+    print(table)
     #Check for empty table
     if len(table) == 1:
         if container == None:
