@@ -1,11 +1,11 @@
 from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
                            load_database, Settings, create_entry, retrieve_entries_by_id, \
-                           retrieve_entries_by_query, retrieive_entries_by_hyde
+                           retrieve_entries_by_query, retrieive_entries_by_hyde, \
+                           load_document
 from automacene.processor.backends.multimodal.vertexAI import VertexAIGenerativeModel
 from typing import List, Any
 import streamlit as st
 import re
-
 
 #---------------------------------#
 #------------ Session ------------#
@@ -46,6 +46,8 @@ def set_session() -> None:
         st.session_state["selecte_entry_by_hyde"] = False
     if "retrieved_table" not in st.session_state:
         st.session_state["retrieved_table"] = []
+    if "document" not in st.session_state:
+        st.session_state["document"] = None
 
 
 def toggle_all_other_toggles(toggle_name: str) -> None:
@@ -145,13 +147,18 @@ def create_sidebar() -> None:
 def write_page() -> None:
     """Write the page."""
     st.markdown(load_md_text("./resources/README.md", __file__))
-    search, edit, create = st.tabs(["Search", "Edit", "Create"])
+    search, edit, create, document= st.tabs(["Search", "Edit", "Create", "Document"])
     with search:
         write_database_selection_window()
     with edit:
         write_edit_window()
     with create:
         write_create_window()
+    with document:
+        write_document_window()
+    
+    if st.session_state.document != None:
+        st.chat_input("Enter a query here to search the document.")
 
 
 def write_database_selection_window() -> None:
@@ -197,6 +204,7 @@ def write_edit_window() -> None:
     #Retrieve Entry
     new_line(col1, 1)
     new_line(col2, 1)
+    #TODO: Get help texts from resources.
     do_retrieve_entries = col1.button("Retrieve Entry")
     query_help = "Select a method on the side, if none are selected, just ask a question or enter data related to the information you'd like to find."
     query_placeholder = "If 'By ID' is checked, this is the ID. If 'By HyDE' is checked, add content from a source. Otherwise, this is the query."
@@ -381,6 +389,81 @@ def write_create_window() -> None:
         create_new_database(st.session_state.settings.database_path, db_name, db_description, db_source)
         toggle_selected_database(db_name)
 
+
+def write_document_window() -> None:
+    """
+    Write page for the document parsing tab.
+    """
+    #File uploader.
+    if st.session_state.document == None:
+        document = st.file_uploader(
+                "Upload a document to parse.", 
+                help="Only .pdf & .txt files are supported at this time. Refresh after uploading.", 
+                type=["pdf", "text"]
+            )
+        if document == None:
+            return
+        doc_info = {
+            "name": document.name,
+            "doc": load_document(document),
+            "type": document.type
+        }
+        st.session_state.document = doc_info
+        return
+    
+    doc_name = st.session_state.document["name"]
+    col1, col2, col3 = st.columns([1,2,2])
+    write_action_page(col1)
+    write_document_pane(col2, doc_name)
+    write_ai_pane(col3)
+
+def write_action_page(column: Any) -> None:
+    """
+    Write the action pane.
+    
+    parameters:
+        column: Any
+            The column to write to.
+    """
+    column.markdown("#### Actions")
+    change = column.number_input(
+        f"Page Number (max. {st.session_state.document['doc'].page_count})", 
+        min_value = 1, 
+        max_value = st.session_state.document["doc"].page_count, 
+        value = 1, 
+        key = "page_number",
+    )
+
+    zoom = column.number_input("Zoom", min_value=0.1, max_value=3.0, value=1.0, key="zoom")
+    st.session_state.document["doc"].set_zoom(zoom)
+    if change != st.session_state.document["doc"].current_page:
+        st.session_state.document["doc"].goto_page(change-1)
+
+def write_document_pane(column: Any, doc_name: str) -> None:
+    """
+    Write the document pane.
+    
+    parameters:
+        column: Any
+            The column to write to.
+    """
+    container = column.container()
+    container.markdown(f"#### Document {doc_name}")
+    with container:
+        st.image(st.session_state.document["doc"].view)
+
+    #Format and Parse
+
+def write_ai_pane(column: Any) -> None:
+    """
+    Write the AI pane.
+    
+    parameters:
+        column: Any
+            The column to write to.
+    """
+    column.markdown("#### AI Results")
+    column.text_area("Formatted Page Data")
 
 #---------------------------------#
 #------------ Functions ----------#

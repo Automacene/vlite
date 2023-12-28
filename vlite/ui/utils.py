@@ -1,11 +1,13 @@
 from automacene.processor.backends.multimodal.vertexAI import VertexAIGenerativeModel
 from automacene.skills.semantic.core import SemanticSkill
+from automacene.processor.tools.document import Document
 from typing import Any, List, Dict
 from vlite.main import VLite
 from warnings import warn
 import numpy as np
 import json
 import uuid
+import fitz
 import os
 
 class Settings(object):
@@ -358,3 +360,21 @@ def retrieive_entries_by_hyde(db: VLite, content: str, access_path:str, count: i
         }
         entries.append(entry)
     return entries
+
+def load_document(document: Any) -> Document:
+    """
+    Load a document from a file.
+
+    parameters:
+        document: Any
+            The document object from a streamlit file uploader.
+
+    returns:
+        Document
+            The document object in the automacene format.
+    """
+    doc_bytes = bytearray(document.getbuffer())
+    fitz_doc = fitz.open(stream=doc_bytes, filetype="pdf")
+    doc = Document(None)
+    doc._content = fitz_doc
+    return doc
