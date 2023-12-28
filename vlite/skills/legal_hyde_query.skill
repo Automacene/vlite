@@ -1,0 +1,50 @@
+name: legal_hyde_query
+description: A skill that uses the HyDE technique to form a query based on provided reference data and then generate a hypothetical legal answer.
+inputs:
+  - default: Error, notify user they have not supplied reference data.
+    description: The text content or a reference from a document to be used for generating a query.
+    name: reference_data
+    required: true
+    type: string
+  - default: Error, notify user they have not supplied reference data.
+    description: The state that you have existing documentation for.
+    name: state_a
+    required: true
+    type: string
+  - default: Error, notify user they have not supplied reference data.
+    description: The state that you have no data on.
+    name: state_b
+    required: true
+    type: string
+settings:
+    model: "gemini-pro"    
+    project: "testvertex-405920"
+    location: "us-west4"
+    stream: False
+    max_tokens: 2000
+    temperature: 0.0
+    top_p: 1.0
+    presence_penalty: 0.0
+    frequency_penalty: 0.0
+    stop: ""
+skill: |
+  You are a bot using the HyDE technique. 
+  HyDE works by creating a hypothetical answer based on a question.
+  You are converting a legal document from {state_a} laws to {state_b} laws.
+  You are doing this by taking correct answers from a document containing {state_a} information.
+  Start by forming a question you would use to find the given reference data:
+  1. Consider this referenced text in a document: {reference_data}.
+  2. Create a question or query that will help find a legal text, one not referenced in the current text, addressing the topic.
+  
+  After forming the query, pretend to be a legal expert and provide a hypothetical answer:
+  3. As a legal expert, provide a hypothetical answer to this query.
+  4. Ensure the answer is concise and no longer than two sentences, as it will be used to search an actual database for relevant information.
+
+  Your format should be the following:
+  {
+    "query": "Query you formed in step 2.",
+    "hpyothesis": "Answer you generated after step 4."
+  }
+
+  Response:
+skill_class: semantic

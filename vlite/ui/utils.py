@@ -1,6 +1,9 @@
+from automacene.processor.backends.multimodal.vertexAI import VertexAIGenerativeModel
+from automacene.skills.semantic.core import SemanticSkill
 from typing import Any, List, Dict
 from vlite.main import VLite
 from warnings import warn
+import numpy as np
 import json
 import uuid
 import os
@@ -283,6 +286,75 @@ def retrieve_entries_by_query(db: VLite, query: str, count:int=5) -> List[Dict[s
         entry = {
             "id": metadata[i]["id"],
             "data": data[i],
+        }
+        entries.append(entry)
+    return entries
+
+def retrieive_entries_by_hyde(db: VLite, content: str, access_path:str, count: int=5) -> List[Dict[str, Any]]:
+    """
+    Retrieve entries from a database using the Hypothetical Document Embedding (HyDE) technique.
+    HyDE works by taking a user's question and generating a hypothetical entry that would answer that question.
+    The hypothetical entry is then used to retrieve entries from the database.
+
+    In this case, we first instruct an AI to generate a hypothetical question that would be answered by the content.
+    Then we use that hypothetical question to generate a hypothetical answer based on our specific context.
+    Finally, we use that hypothetical answer to retrieve entries from the database.
+
+    parameters:
+        content: str
+            The content to use to retrieve entries.
+        count: int
+            The number of entries to retrieve.
+
+    returns:
+        List[Dict[str, Any]]
+            The entries.
+    """
+    skill = SemanticSkill("HyDE_skill","vlite/skills/legal_hyde_query.skill", remote=False)
+    llm = VertexAIGenerativeModel(skill, access_path)
+
+    inputs = {
+        "state_a": "New Jersey", 
+        "state_b": "Maryland", 
+        "reference_data": content
+    }
+    outputs = llm.prompt(inputs).get_best_response()
+    json_data = json.loads(outputs)
+
+    query = json_data["query"]
+    hypothesis = json_data["hypothesis"]
+    data, metadata, scores = db.remember(text=content, top_k=count)
+    query_data, query_metadata, q_scores = db.remember(text=query, top_k=count)
+    hypothesis_data, hypothesis_metadata, h_scores = db.remember(text=hypothesis, top_k=count)
+    
+    data.extend(query_data)
+    data.extend(hypothesis_data)
+    metadata.extend(query_metadata)
+    metadata.extend(hypothesis_metadata)
+    scores = np.concatenate((scores, q_scores, h_scores))
+
+    #Sort by score
+    sorted_indices = np.argsort(scores)[::-1]
+    print(np.shape(sorted_indices))
+    data = [data[i] for i in sorted_indices]
+    metadata = [metadata[i] for i in sorted_indices]
+    scores = [scores[i] for i in sorted_indices]
+
+    #Remove duplicates
+    unique_data = []
+    unique_metadata = []
+    unique_scores = []
+    for i in range(len(data)):
+        if data[i] not in unique_data:
+            unique_data.append(data[i])
+            unique_metadata.append(metadata[i])
+            unique_scores.append(scores[i])
+
+    entries = []
+    for i in range(len(unique_data[:count])):
+        entry = {
+            "id": unique_metadata[i]["id"],
+            "data": unique_data[i],
         }
         entries.append(entry)
     return entries

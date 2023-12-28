@@ -1,6 +1,7 @@
 from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
                            load_database, Settings, create_entry, retrieve_entries_by_id, \
-                           retrieve_entries_by_query
+                           retrieve_entries_by_query, retrieive_entries_by_hyde
+from automacene.processor.backends.multimodal.vertexAI import VertexAIGenerativeModel
 from typing import List, Any
 import streamlit as st
 import re
@@ -41,6 +42,8 @@ def set_session() -> None:
         st.session_state["selected_database"] = None
     if "select_entry_by_id" not in st.session_state:
         st.session_state["select_entry_by_id"] = False
+    if "selecte_entry_by_hyde" not in st.session_state:
+        st.session_state["selecte_entry_by_hyde"] = False
     if "retrieved_table" not in st.session_state:
         st.session_state["retrieved_table"] = []
 
@@ -86,11 +89,26 @@ def toggle_selected_database(database: str) -> None:
     else:
         st.session_state.selected_database = database
 
-def toggle_retrieve_by_id() -> None:
+def toggle_retrieve_by_method(method:str) -> None:
     """
-    Toggle the retrieve by id checkbox.
+    Toggle the retrieve by id or hyde methods.
+
+    parameters:
+        method: str
+            The method to toggle.
+            "id" will toggle the id method.
+            "hyde" will toggle the hyde method.
+            Anything else will toggle both off and default to the vanilla query method.
     """
-    st.session_state.select_entry_by_id = not st.session_state.select_entry_by_id
+    if method == "id":
+        st.session_state.select_entry_by_id = not st.session_state.select_entry_by_id
+        st.session_state.selecte_entry_by_hyde = False
+    elif method == "hyde":
+        st.session_state.select_entry_by_id = False
+        st.session_state.selecte_entry_by_hyde = not st.session_state.selecte_entry_by_hyde
+    else:
+        st.session_state.select_entry_by_id = False
+        st.session_state.selecte_entry_by_hyde = False
 
 
 #---------------------------------#
@@ -180,12 +198,21 @@ def write_edit_window() -> None:
     new_line(col1, 1)
     new_line(col2, 1)
     do_retrieve_entries = col1.button("Retrieve Entry")
-    query = col3.text_area("Query", placeholder="If 'By ID' is checked, this is the ID. Otherwise, this is the data.")
-    col2.checkbox("By ID", key="retrieve_by_id", on_change=toggle_retrieve_by_id)
+    query_help = "Select a method on the side, if none are selected, just ask a question or enter data related to the information you'd like to find."
+    query_placeholder = "If 'By ID' is checked, this is the ID. If 'By HyDE' is checked, add content from a source. Otherwise, this is the query."
+    query = col3.text_area("Query", placeholder=query_placeholder, key="query", help=query_help)
+    id_help = "Retrieve entries by their ID. It will only retrieve 1 or 0 entries if none are found."
+    col2.checkbox("By ID", key="retrieve_by_id", on_change=toggle_retrieve_by_method, args=("id",), help=id_help)
+    hyde_help = "HyDE stands for Hypothetical Document Embeddings. "
+    hyde_help += "Our version of HyDE generates a content from one source of content, and then uses it to generate a question for another source of content. "
+    hyde_help += "Then the question is used to generate a hypothetical answer for the data in the database. "
+    hyde_help += "An example would be submitting laws for New Jersey, generating a question about the law but from the perspective of Maryland, and then generating a hypothetical answer for the law from the perspective of Maryland. "
+    hyde_help += "This is then used to find laws in Maryland that are close to the generated hypothetical answer. "
+    col2.checkbox("By Hyde", key="retrieve_by_hyde", on_change=toggle_retrieve_by_method, args=("hyde",), help=hyde_help)
     
     #Create Entry
     new_line(col1, 11)
-    new_line(col2, 10)
+    new_line(col2, 7)
     new_line(col3, 4)
     create_new_entry = col1.button("Create Entry")
     entry_id = col2.text_input("Creation ID", placeholder="Enter ID here...", key="create_id")
@@ -263,6 +290,7 @@ def write_edit_window() -> None:
                 return
             temp_query = temp_query.strip()
             temp_query = None if temp_query == "" else temp_query
+            query = temp_query
         
         #Empty checks
         query = query.strip()
@@ -273,6 +301,9 @@ def write_edit_window() -> None:
         #Retrieve
         if st.session_state.select_entry_by_id:
             retrieved_table = retrieve_entries_by_id(database, ids=[query])
+            st.session_state.retrieved_table = retrieved_table
+        elif st.session_state.selecte_entry_by_hyde:
+            retrieved_table = retrieive_entries_by_hyde(database, query, "./access_key.json")
             st.session_state.retrieved_table = retrieved_table
         else:
             retrieved_table = retrieve_entries_by_query(database, query)
@@ -325,7 +356,6 @@ def write_create_window() -> None:
             return
         
         temp_db_description = description_cleaner.sub("", db_description)
-        print(temp_db_description, db_description)
         if temp_db_description != db_description:
             st.error("Please only use letters, numbers, and punctuation (.,!?;:-) in the database description.")
             st.error(temp_db_description)
@@ -386,7 +416,6 @@ def draw_table(table: List[dict], container: Any = None) -> None:
             Any item like a streamlit column or container.
             None will add a new line to the page.
     """
-    print(table)
     #Check for empty table
     if len(table) == 1:
         if container == None:
