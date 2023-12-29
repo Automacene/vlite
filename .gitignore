@@ -64,3 +64,4 @@ coverage.xml
 *.bak
 
 access_key.json
+/skills

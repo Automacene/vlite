@@ -292,6 +292,9 @@ def retrieve_entries_by_query(db: VLite, query: str, count:int=5) -> List[Dict[s
         entries.append(entry)
     return entries
 
+#TODO: Rewrite as API call to AI server
+#TODO: Also, make a vanilla HyDE that is not specific to legal documents
+#TODO: Make a HyDE "Transfer" function similar to this one but for any arbitrary context.
 def retrieive_entries_by_hyde(db: VLite, content: str, access_path:str, count: int=5) -> List[Dict[str, Any]]:
     """
     Retrieve entries from a database using the Hypothetical Document Embedding (HyDE) technique.
@@ -312,7 +315,7 @@ def retrieive_entries_by_hyde(db: VLite, content: str, access_path:str, count: i
         List[Dict[str, Any]]
             The entries.
     """
-    skill = SemanticSkill("HyDE_skill","vlite/skills/legal_hyde_query.skill", remote=False)
+    skill = SemanticSkill("HyDE_skill","./skills/legal_hyde_query.skill", remote=False)
     llm = VertexAIGenerativeModel(skill, access_path)
 
     inputs = {
@@ -361,6 +364,8 @@ def retrieive_entries_by_hyde(db: VLite, content: str, access_path:str, count: i
         entries.append(entry)
     return entries
 
+
+#TODO: Determine how to remove automacene dependency
 def load_document(document: Any) -> Document:
     """
     Load a document from a file.
@@ -378,3 +383,25 @@ def load_document(document: Any) -> Document:
     doc = Document(None)
     doc._content = fitz_doc
     return doc
+
+
+def smart_format_document_page(page_content: str, set_format_window: Any) -> None:
+    """
+    Format a document page.
+
+    parameters:
+        page_content: str
+            The page content to send through the formatter LLM
+
+    returns:
+        str
+            The formatted page.
+    """
+    skill = SemanticSkill("smart_format","./skills/smart_format.skill", remote=False)
+    llm = VertexAIGenerativeModel(skill, "./access_key.json")
+    inputs = {
+        "input_text": page_content
+    }
+    output = llm.prompt(inputs).get_best_response()
+    set_format_window(output)
+    print(output)

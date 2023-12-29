@@ -1,8 +1,8 @@
 from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
                            load_database, Settings, create_entry, retrieve_entries_by_id, \
                            retrieve_entries_by_query, retrieive_entries_by_hyde, \
-                           load_document
-from automacene.processor.backends.multimodal.vertexAI import VertexAIGenerativeModel
+                           load_document, smart_format_document_page
+from streamlit.delta_generator import DeltaGenerator
 from typing import List, Any
 import streamlit as st
 import re
@@ -48,6 +48,10 @@ def set_session() -> None:
         st.session_state["retrieved_table"] = []
     if "document" not in st.session_state:
         st.session_state["document"] = None
+    if "formatted_page_data" not in st.session_state:
+        st.session_state["formatted_page_data"] = None
+    if "parsed_page_data" not in st.session_state:
+        st.session_state["parsed_page_data"] = None
 
 
 def toggle_all_other_toggles(toggle_name: str) -> None:
@@ -156,7 +160,7 @@ def write_page() -> None:
         write_create_window()
     with document:
         write_document_window()
-    
+
     if st.session_state.document != None:
         st.chat_input("Enter a query here to search the document.")
 
@@ -417,7 +421,7 @@ def write_document_window() -> None:
     write_document_pane(col2, doc_name)
     write_ai_pane(col3)
 
-def write_action_page(column: Any) -> None:
+def write_action_page(column: DeltaGenerator) -> None:
     """
     Write the action pane.
     
@@ -437,9 +441,9 @@ def write_action_page(column: Any) -> None:
     zoom = column.number_input("Zoom", min_value=0.1, max_value=3.0, value=1.0, key="zoom")
     st.session_state.document["doc"].set_zoom(zoom)
     if change != st.session_state.document["doc"].current_page:
-        st.session_state.document["doc"].goto_page(change-1)
+        change_page(change)
 
-def write_document_pane(column: Any, doc_name: str) -> None:
+def write_document_pane(column: DeltaGenerator, doc_name: str) -> None:
     """
     Write the document pane.
     
@@ -454,7 +458,7 @@ def write_document_pane(column: Any, doc_name: str) -> None:
 
     #Format and Parse
 
-def write_ai_pane(column: Any) -> None:
+def write_ai_pane(column: DeltaGenerator) -> None:
     """
     Write the AI pane.
     
@@ -463,12 +467,30 @@ def write_ai_pane(column: Any) -> None:
             The column to write to.
     """
     column.markdown("#### AI Results")
-    column.text_area("Formatted Page Data")
+    formatted_content = st.session_state.formatted_page_data
+    format_the_page = column.button("Format Page")
+    column.text_area(
+        "Formatted Page Data",
+        key="format_page_text_area",
+        value=formatted_content
+        )
+    
+    can_parse = st.session_state.formatted_page_data != None
+    column.button("Parse Page", disabled=(not can_parse))
+    if can_parse:
+        parsed_page_data = [{}]
+
+        for data in parsed_page_data:
+            column.text_area("Parsed Page Data")
+    
+    if format_the_page:
+        page = st.session_state.document["doc"].page_content
+        smart_format_document_page(page, set_formatted_content)
 
 #---------------------------------#
-#------------ Functions ----------#
+#------- Generic Functions -------#
 #---------------------------------#        
-def new_line(container: Any = None, times: int = 1) -> None:
+def new_line(container: DeltaGenerator = None, times: int = 1) -> None:
     """
     Add a new line to an element.
 
@@ -487,7 +509,7 @@ def new_line(container: Any = None, times: int = 1) -> None:
             container.markdown(" ")
 
 
-def draw_table(table: List[dict], container: Any = None) -> None:
+def draw_table(table: List[dict], container: DeltaGenerator = None) -> None:
     """
     A markdown table.
 
@@ -526,6 +548,30 @@ def draw_table(table: List[dict], container: Any = None) -> None:
         st.markdown(table_string)
     else:
         container.markdown(table_string)
+
+
+def change_page(page_number: int) -> None:
+    """
+    Change the page of the document.
+
+    parameters:
+        page_number: int
+            The page number to change to.
+    """
+    st.session_state.document["doc"].goto_page(page_number-1)
+    st.session_state.formatted_page_data = None
+    st.session_state.parsed_page_data = None
+
+
+def set_formatted_content(content: str) -> None:
+    """
+    Set the formatted content.
+
+    parameters:
+        content: str
+            The content to display.
+    """
+    st.session_state.formatted_page_data = content
 
 
 if __name__ == "__main__":
