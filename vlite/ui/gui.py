@@ -1,7 +1,8 @@
 from vlite.ui.utils import load_md_text, get_databases, create_new_database, \
                            load_database, Settings, create_entry, retrieve_entries_by_id, \
                            retrieve_entries_by_query, retrieive_entries_by_hyde, \
-                           load_document, smart_format_document_page
+                           load_document, smart_format_document_page, \
+                           smart_parse_document_page
 from streamlit.delta_generator import DeltaGenerator
 from typing import List, Any
 import streamlit as st
@@ -161,8 +162,9 @@ def write_page() -> None:
     with document:
         write_document_window()
 
-    if st.session_state.document != None:
-        st.chat_input("Enter a query here to search the document.")
+    #TODO: Add chat based commands/instructions later.
+    #if st.session_state.document != None:
+    #    st.chat_input("Enter a format and parse command here.")
 
 
 def write_database_selection_window() -> None:
@@ -476,16 +478,38 @@ def write_ai_pane(column: DeltaGenerator) -> None:
         )
     
     can_parse = st.session_state.formatted_page_data != None
-    column.button("Parse Page", disabled=(not can_parse))
+    parse_the_page = column.button("Parse Page", disabled=(not can_parse))
+    section_actions = []
+    section_data = []
     if can_parse:
-        parsed_page_data = [{}]
-
-        for data in parsed_page_data:
-            column.text_area("Parsed Page Data")
+        empty_parse = [{"content": ""}]
+        parsed_page_data = st.session_state.parsed_page_data if st.session_state.parsed_page_data != None else empty_parse
+        for d, data in enumerate(parsed_page_data):
+            col1, col2 = column.columns([1,5])
+            new_line(col1, 2)
+            action = [col1.button(f"Create Entry {d}"), d]
+            section_actions.append(action)
+            section_data.append(col2.text_area(f"Parsed Page Data {d}", value=data["content"]))
     
     if format_the_page:
         page = st.session_state.document["doc"].page_content
-        smart_format_document_page(page, set_formatted_content)
+        formatted_content = smart_format_document_page(page)
+        st.session_state.formatted_page_data = formatted_content
+    
+    if can_parse and parse_the_page:
+        parsed_page_data = smart_parse_document_page(formatted_content)
+        st.session_state.parsed_page_data = parsed_page_data
+    
+    for action, data in zip(section_actions, section_data):
+        if action[0]:
+            page = st.session_state.document["doc"].current_page
+            database = load_database(st.session_state.settings.database_path, st.session_state.selected_database)
+            create_entry(
+                database, 
+                data, 
+                id=f"{st.session_state.document['name']}_{page}_{action[1]}"
+            )
+
 
 #---------------------------------#
 #------- Generic Functions -------#
@@ -540,6 +564,8 @@ def draw_table(table: List[dict], container: DeltaGenerator = None) -> None:
     for row in table[1:]:
         table_string += "|"
         for key in row:
+            row[key] = row[key].strip()
+            row[key] = row[key].replace("\n", "\\n ")
             table_string += f" {row[key]} |"
         table_string += "\n"
     
@@ -558,20 +584,12 @@ def change_page(page_number: int) -> None:
         page_number: int
             The page number to change to.
     """
+    if st.session_state.document["doc"].current_page == page_number-1:
+        return
+    print(f"Changing page to {page_number}")
     st.session_state.document["doc"].goto_page(page_number-1)
     st.session_state.formatted_page_data = None
     st.session_state.parsed_page_data = None
-
-
-def set_formatted_content(content: str) -> None:
-    """
-    Set the formatted content.
-
-    parameters:
-        content: str
-            The content to display.
-    """
-    st.session_state.formatted_page_data = content
 
 
 if __name__ == "__main__":

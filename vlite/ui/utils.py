@@ -5,9 +5,10 @@ from typing import Any, List, Dict
 from vlite.main import VLite
 from warnings import warn
 import numpy as np
+import fitz
 import json
 import uuid
-import fitz
+import yaml
 import os
 
 class Settings(object):
@@ -136,7 +137,6 @@ def get_databases(path: str) -> (List[str], List[str]):
         else:
 
             descriptions.append("None provided.")
-        print("Loaded database:", db)
 
     return databases, descriptions
 
@@ -240,6 +240,7 @@ def create_entry(db: VLite, data: str, id: str = None, metadata: Dict[str, Any] 
         warn("Metadata does not contain a description. Adding one.")
         metadata["description"] = "None provided."
     
+    print(f"Creating entry with id '{id}'..")
     db.memorize(data, id=id, metadata=metadata)
 
 def retrieve_entries_by_id(db: VLite, ids: List[str]=None) -> List[Dict[str, Any]]:
@@ -340,7 +341,6 @@ def retrieive_entries_by_hyde(db: VLite, content: str, access_path:str, count: i
 
     #Sort by score
     sorted_indices = np.argsort(scores)[::-1]
-    print(np.shape(sorted_indices))
     data = [data[i] for i in sorted_indices]
     metadata = [metadata[i] for i in sorted_indices]
     scores = [scores[i] for i in sorted_indices]
@@ -385,7 +385,7 @@ def load_document(document: Any) -> Document:
     return doc
 
 
-def smart_format_document_page(page_content: str, set_format_window: Any) -> None:
+def smart_format_document_page(page_content: str) -> str:
     """
     Format a document page.
 
@@ -403,5 +403,26 @@ def smart_format_document_page(page_content: str, set_format_window: Any) -> Non
         "input_text": page_content
     }
     output = llm.prompt(inputs).get_best_response()
-    set_format_window(output)
-    print(output)
+    return output
+
+def smart_parse_document_page(page_content: str) -> List[Dict[str, Any]]:
+    """
+    Parse a document page.
+
+    parameters:
+        page_content: str
+            The page content to send through the parser LLM
+
+    returns:
+        List[Dict[str, Any]]
+            The parsed page as a list of dictionaries with each dictionary representing a paragraph.
+            format: [ { "content": "The content of the paragraph." } ]
+    """
+    skill = SemanticSkill("smart_parse","./skills/smart_parse.skill", remote=False)
+    llm = VertexAIGenerativeModel(skill, "./access_key.json")
+    inputs = {
+        "input_text": page_content
+    }
+    output = llm.prompt(inputs).get_best_response() #Output is yaml string
+    output = yaml.load(output, Loader=yaml.FullLoader) 
+    return output["split_content"] 
