@@ -1,11 +1,10 @@
-from .utils import chop_and_chunk, cos_sim
 from typing import Any, List, Tuple, Union
 from .model import EmbeddingModel
+from .utils import cos_sim
 import numpy as np
-import datetime
-import warnings
-import uuid
 import traceback
+import datetime
+import uuid
 
 class Data:
     """Generic data class for vector storage with property special property access."""
@@ -16,11 +15,6 @@ class Data:
             data = {}
         self._data = data
     
-    def __contains__(self, key: str) -> bool:
-        """Check if a key is in the data object. Key must be a string."""
-        key = str(key)
-        return key in self._data
-
     def __getitem__(self, key: str):
         """Get a value from the data object. Key must be a string."""
         key = str(key)
@@ -111,14 +105,29 @@ class VLite:
             self.info = info
             self._vector_key_store = []
     
-    def add_vector(self, vector:Any):
+    def add_data(self, data, metadata, vector:Any, id:str=None):
         """
         Add a vector to the database.
 
         Parameters:
         vector (Any): The vector to add to the database.
         """
+        vector_count = len(vector)
+        data_count = len(data) if isinstance(data, list) else 1
+        if data_count != vector_count:
+            raise ValueError(f"Data count ({data_count}) does not match vector count ({vector_count}).")
+        
         self.vectors = np.vstack((self.vectors, vector))
+        for i in range(vector_count):
+            if id is None:
+                _id = str(uuid.uuid4())
+            else:
+                _id = f"{id}_{i}"
+            
+            self._vector_key_store.append(_id)
+            self.data[_id] = data[i]
+            self.metadata[_id] = metadata
+        print(f"Added vector {id} to database. {len(self.vectors)} vectors and {len(self._vector_key_store)} keys in database.")
 
     def get_similar_vectors(self, vector:Any, top_k:int=5, DEBUG:bool=False):
         """
@@ -156,9 +165,7 @@ class VLite:
             id = str(uuid.uuid4())
         
         encoded_data = self.model.embed(texts=text, device=self.device)
-        self.vectors = np.vstack((self.vectors, encoded_data))
-        self._vector_key_store.append(id)
-        add_data(text, self, metadata, id)
+        self.add_data(data=text, metadata=metadata, vector=encoded_data, id=id)
         self.save()
         return id, encoded_data[0]
 
@@ -185,7 +192,8 @@ class VLite:
             if DEBUG:
                 print("[remember] Vectors:", self.vectors.shape)
                 print("[remember] Sims:", sims.shape)
-                
+                print("[remember] Keys:", len(self._vector_key_store))
+
             sims = sims[0]
 
 			# top_k cannot be higher than the number of similarities returned
@@ -342,22 +350,3 @@ class VLite:
         if value is None:
             value = {}
         self._info = value
-
-
-"""
----------------------
---- Utility Code ----
----------------------
-"""
-def add_data(data, db: VLite, metadata = None, key = None):
-    """Add entry to the database"""
-    if key is None:
-        key = uuid.uuid4()
-    key = str(key)
-    
-    db.data[key] = data
-
-    if metadata is None:
-        metadata = {}
-    metadata["id"] = key
-    db.metadata[key] = metadata
